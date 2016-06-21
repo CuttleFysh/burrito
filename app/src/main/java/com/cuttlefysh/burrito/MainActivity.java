@@ -40,17 +40,22 @@ import android.widget.Toast;
 
 
 public class MainActivity extends Activity {
-
+    // Organize following code of vars
     private final static String TAG = "Burrito";
     private static final int REQUEST_CAMERA_PERMISSION = 200;
     private TextureView mTextureView = null;
+    private Size mPreviewSize = null;
+    private CameraDevice mCameraDevice = null;
+    private CaptureRequest.Builder mPreviewBuilder = null;
+    private CameraCaptureSession mPreviewSession = null;
+    // ends, search more vars
     private TextureView.SurfaceTextureListener mSurfaceTextureListener = new TextureView.SurfaceTextureListener() {
 
         @Override
-        public void onSurfaceTextureUpdated(SurfaceTexture surface) {
+        public void onSurfaceTextureAvailable(SurfaceTexture surface, int width,
+                                              int height) {
             // TODO Auto-generated method stub
-            //Log.i(TAG, "onSurfaceTextureUpdated()");
-
+            openCamera(width, height);
         }
 
         @Override
@@ -69,29 +74,12 @@ public class MainActivity extends Activity {
         }
 
         @Override
-        public void onSurfaceTextureAvailable(SurfaceTexture surface, int width,
-                                              int height) {
+        public void onSurfaceTextureUpdated(SurfaceTexture surface) {
             // TODO Auto-generated method stub
-            Log.i(TAG, "onSurfaceTextureAvailable()");
-            CameraManager manager = (CameraManager) getSystemService(CAMERA_SERVICE);
-            try{
-                String cameraId = manager.getCameraIdList()[0];
-                CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
-                StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
-                mPreviewSize = map.getOutputSizes(SurfaceTexture.class)[0];
-                if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED)
-                {
-                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CAMERA_PERMISSION);
-                    return;
-                }
-                manager.openCamera(cameraId, mStateCallback, null);
-            }
-            catch(CameraAccessException e)
-            {
-                e.printStackTrace();
-            }
-            transformImage(width, height);
+            //Log.i(TAG, "onSurfaceTextureUpdated()");
+
         }
+
     };
 
     @Override
@@ -106,6 +94,29 @@ public class MainActivity extends Activity {
                 finish();
             }
         }
+    }
+
+    private void openCamera(int width, int height)
+    {
+        Log.i(TAG, "onSurfaceTextureAvailable()");
+        CameraManager manager = (CameraManager) getSystemService(CAMERA_SERVICE);
+        try{
+            String cameraId = manager.getCameraIdList()[0];
+            CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
+            StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+            mPreviewSize = map.getOutputSizes(SurfaceTexture.class)[0];
+            if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED)
+            {
+                ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CAMERA_PERMISSION);
+                return;
+            }
+            manager.openCamera(cameraId, mStateCallback, null);
+        }
+        catch(CameraAccessException e)
+        {
+            e.printStackTrace();
+        }
+        transformImage(width, height);
     }
 
     private void transformImage(int width, int height)
@@ -135,11 +146,6 @@ public class MainActivity extends Activity {
 
     }
 
-
-    private Size mPreviewSize = null;
-    private CameraDevice mCameraDevice = null;
-    private CaptureRequest.Builder mPreviewBuilder = null;
-    private CameraCaptureSession mPreviewSession = null;
     private CameraDevice.StateCallback mStateCallback = new CameraDevice.StateCallback() {
 
         @Override
@@ -227,6 +233,20 @@ public class MainActivity extends Activity {
 
         mTextureView = (TextureView) findViewById(R.id.textureView);
         mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
+    }
+
+    @Override
+    protected void onResume()
+    {
+        super.onResume();
+        if(mTextureView.isAvailable())
+        {
+            openCamera(mTextureView.getWidth(), mTextureView.getHeight());
+        }
+        else
+        {
+            mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
+        }
     }
 
     @Override
